@@ -278,3 +278,11 @@ def preprocess(dataset, word_window_size=5, train_data=False, label=True,scaling
       
   
   return X,np.array(y)
+  
+def summary(X,y):
+  print("-----Summary of dataset-----")
+  print("Total number of samples:", X.shape[0])
+  print("Total number of samples with label 0:", y[y[:]==0].shape[0])
+  print("Total number of samples with label 1:", y[y[:]==1].shape[0])
+  print("----------------------------")
+  print()
