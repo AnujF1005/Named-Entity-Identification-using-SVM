@@ -265,19 +265,38 @@ def preprocess(dataset, word_window_size=5, train_data=False, label=True,scaling
     
     X.append(x)
   
+  
+  X,y = np.array(X), np.array(y)
+  if train_data:
+    #Handling Imbalance  
+    p = np.random.permutation(X.shape[0])
+    #Shuffling
+    X,y = X[p], y[p]
+
+    mask = y[:]==1
+    new_X = X[mask]
+    new_y = y[mask]
+    count = 9*new_X.shape[0]
+    mask = np.logical_not(mask)
+    new_X = np.vstack([new_X, X[mask][:count]])
+    new_y = np.array(list(new_y)+ list(y[mask][:count]))
+    X = new_X
+    y = new_y
+    ####
+   
   if scaling:
     if train_data:
       scaler = MinMaxScaler()
-      X = scaler.fit_transform(np.array(X))
+      X = scaler.fit_transform(X)
       with open('preprocessing_assets/scaler', 'wb') as f:
         pickle.dump(scaler, f)
     else:
       with open('preprocessing_assets/scaler', 'rb') as f:
         scaler = pickle.load(f)
-        X = scaler.transform(np.array(X))
+        X = scaler.transform(X)
       
   
-  return X,np.array(y)
+  return X,y
   
 def summary(X,y):
   print("-----Summary of dataset-----")
