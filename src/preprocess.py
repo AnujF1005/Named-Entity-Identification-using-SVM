@@ -271,6 +271,9 @@ def preprocess(dataset, word_window_size=5, train_data=False, label=True,scaling
   
   X,y = np.array(X), np.array(y)
   
+  #print(X.sum(axis=0))
+  #print(X[y[:]==1].sum(axis=0))
+  
   if train_data:
     #Handling Imbalance  
     p = np.random.permutation(X.shape[0])
@@ -280,7 +283,7 @@ def preprocess(dataset, word_window_size=5, train_data=False, label=True,scaling
     mask = y[:]==1
     new_X = X[mask]
     new_y = y[mask]
-    count = 5*new_X.shape[0]
+    count = 2*new_X.shape[0]
     mask = np.logical_not(mask)
     new_X = np.vstack([new_X, X[mask][:count]])
     new_y = np.array(list(new_y)+ list(y[mask][:count]))
@@ -289,6 +292,7 @@ def preprocess(dataset, word_window_size=5, train_data=False, label=True,scaling
     ####
   
   #print(X.sum(axis=0))
+  #print(X[y[:]==1].sum(axis=0))
 
   if scaling:
     if train_data:
