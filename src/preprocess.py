@@ -280,7 +280,7 @@ def preprocess(dataset, word_window_size=5, train_data=False, label=True,scaling
     mask = y[:]==1
     new_X = X[mask]
     new_y = y[mask]
-    count = new_X.shape[0]
+    count = 5*new_X.shape[0]
     mask = np.logical_not(mask)
     new_X = np.vstack([new_X, X[mask][:count]])
     new_y = np.array(list(new_y)+ list(y[mask][:count]))
@@ -288,7 +288,7 @@ def preprocess(dataset, word_window_size=5, train_data=False, label=True,scaling
     y = new_y
     ####
   
-  print(X.sum(axis=0))
+  #print(X.sum(axis=0))
 
   if scaling:
     if train_data:
