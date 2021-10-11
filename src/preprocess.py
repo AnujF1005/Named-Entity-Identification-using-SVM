@@ -8,15 +8,7 @@ from gazetteer import get_gazetteer
 import re
 from sklearn.preprocessing import MinMaxScaler
 
-class Scaler():
-  def __call__(self,features, is_train=False):
-    if is_train:
-      self.mins= features.min(axis=0)
-      self.maxes = features.max(axis=0)
-
-    scaled_features = (features-self.mins)/(self.maxes-self.mins)
-        
-    return scaled_features
+gaz = get_gazetteer()
 
 def get_features(sentence, word_window_size=5):
   """
@@ -36,13 +28,14 @@ def get_features(sentence, word_window_size=5):
   lemmatizer = WordNetLemmatizer()
   #gaz = get_gazetteer()
 
+
   for i in range(len(sentence['tokens'])):
     features = {} #Dictionary to store features of each word
 
     #Chunk tag of word
     #features['Chunk'] = sentence['chunk_tags'][i]
     
-    ''' 
+    
     #Is it in gazetteer
     score = 0
     score += int(sentence['tokens'][i].lower() in gaz)
@@ -52,25 +45,34 @@ def get_features(sentence, word_window_size=5):
       score += int((' '.join(sentence['tokens'][i:i+2])).lower() in gaz)
     
     features['isInGazetteer'] = int(score>0)
-    '''
+    
 
     #Whether first character is capital or not
-    features['firstCap'] = int(sentence['tokens'][i][0].isupper())
+    #features['firstCap'] = int(sentence['tokens'][i][0].isupper())
+    features['firstCapNotFirstWord'] = int(sentence['tokens'][i][0].isupper() and i!=0)
 
     #Whether it is first word or not
-    features['firstWord'] = int(i==0)
-
+    #features['firstWord'] = int(i==0)
+    features['firstWordAndNoun'] = int(i==0 and pos_tag([sentence['tokens'][i].lower()])[0][1].lower() in ['n', 'nn','nnp','nnps'])
+    features['firstCapAndNoun'] = int(sentence['tokens'][i][0].isupper() and pos_tag([sentence['tokens'][i].lower()])[0][1].lower() in ['n', 'nn','nnp','nnps'])
+    #features['isNN'] = int(pos_tag([sentence['tokens'][i]])[0][1].lower() == 'nn')
     #Whether all characters of word are capital or not
     features['allCaps'] = int(sentence['tokens'][i].isupper())
     
     features['containsDigitandAlpha'] = int(bool(re.search(r'\d', sentence['tokens'][i])))
     
     features['isDigit'] = int(sentence['tokens'][i].isdigit())
-
+    '''
+    if i-1 > 0:
+      features['isNounAndFollowedByDT'] = int(pos_tag([sentence['tokens'][i]])[0][1].lower() in ['n', 'nn','nnp','nnps'] and pos_tag([sentence['tokens'][i-1]])[0][1].lower() == 'dt')
+    else:
+      features['isNounAndFollowedByDT'] = 0
+    '''
     #features['isSingleCharWord'] = int(len(sentence['tokens'][i]) == 1)
 
     #features['isInitial'] = int(sentence['tokens'][i][-1] == '.' and len(sentence['tokens'][i])==2 and sentence['tokens'][i][0].isalpha())
 
+    '''
     itr = i - word_window_size // 2
     
     while itr <= i+word_window_size//2:
@@ -128,7 +130,7 @@ def get_features(sentence, word_window_size=5):
       
       
       itr+=1
-      
+    '''
     sentence_features.append(features)
 
   return sentence_features
@@ -180,6 +182,7 @@ def preprocess(dataset, word_window_size=5, train_data=False, label=True,scaling
   pos2idx = {p:i+1 for i,p in enumerate(all_pos)}
   pos2idx['<PAD>'] = 0
   
+  '''
   if train_data:
     words = []
     lemmas = []
@@ -216,7 +219,7 @@ def preprocess(dataset, word_window_size=5, train_data=False, label=True,scaling
   else:
     with open('preprocessing_assets/data_dictionaries', 'rb') as f:
       word2idx, lemma2idx, suffix22idx, suffix32idx, prefix22idx, prefix32idx=pickle.load(f)
-
+  '''
   X,y = [], []
 
   for rec in range(dataset.shape[0]):
@@ -267,6 +270,7 @@ def preprocess(dataset, word_window_size=5, train_data=False, label=True,scaling
   
   
   X,y = np.array(X), np.array(y)
+  
   if train_data:
     #Handling Imbalance  
     p = np.random.permutation(X.shape[0])
@@ -276,14 +280,16 @@ def preprocess(dataset, word_window_size=5, train_data=False, label=True,scaling
     mask = y[:]==1
     new_X = X[mask]
     new_y = y[mask]
-    count = 9*new_X.shape[0]
+    count = new_X.shape[0]
     mask = np.logical_not(mask)
     new_X = np.vstack([new_X, X[mask][:count]])
     new_y = np.array(list(new_y)+ list(y[mask][:count]))
     X = new_X
     y = new_y
     ####
-   
+  
+  print(X.sum(axis=0))
+
   if scaling:
     if train_data:
       scaler = MinMaxScaler()

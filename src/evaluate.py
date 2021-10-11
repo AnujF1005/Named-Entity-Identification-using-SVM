@@ -2,7 +2,9 @@ from sklearn import svm
 from dataset import get_test
 import os
 import pickle
-from sklearn.metrics import classification_report
+from sklearn.metrics import classification_report, confusion_matrix
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 model_path = 'models/svm'
 
@@ -19,3 +21,7 @@ with open(model_path,'rb') as f:
 
 pred_y = classifier.predict(test_X)
 print(classification_report(test_y, pred_y))
+
+cf_matrix = confusion_matrix(test_y, pred_y)
+sns.heatmap(cf_matrix, annot=True)
+plt.savefig('confusion_matrix.png')

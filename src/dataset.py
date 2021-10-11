@@ -13,7 +13,7 @@ def get_train():
     with open(file_name,'rb') as f:
       X, y = pickle.load(f)
     print("Training data:")
-    print(summary(X,y))
+    summary(X,y)
     return X,y
   
   conll_data = load_dataset('conll2003')
@@ -32,7 +32,7 @@ def get_train():
     pickle.dump([X,y], f)
     
   print("Training data:")
-  print(summary(X,y))
+  summary(X,y)
   return X,y
   
 def get_test():
@@ -44,7 +44,7 @@ def get_test():
       X, y = pickle.load(f)
       
     print("Testing data:")
-    print(summary(X,y))
+    summary(X,y)
     return X,y
   
   conll_data = load_dataset('conll2003')
@@ -63,6 +63,6 @@ def get_test():
     pickle.dump([X,y], f)
   
   print("Testing data:")
-  print(summary(X,y))
+  summary(X,y)
   
   return X,y
