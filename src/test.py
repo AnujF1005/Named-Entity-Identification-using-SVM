@@ -14,7 +14,7 @@ with open(model_path,'rb') as f:
   classifier = pickle.load(f)
 
 while True:
-  s = input('Enter the sentence: ')
+  s = input('Enter the sentence: ').strip()
   s = s.split(' ')
   
   query = {'tokens': s}
