@@ -1,23 +1,60 @@
 import pickle
 import pandas as pd
 from nltk.stem import WordNetLemmatizer
+from nltk.corpus import stopwords
 from nltk import pos_tag
 from nltk.data import load
 import numpy as np
-from gazetteer import get_gazetteer
+# from gazetteer import get_gazetteer
 import re
 from sklearn.preprocessing import MinMaxScaler
 
-gaz = get_gazetteer()
+def get_word_features(sentence, i, word_window_size=5, prevLabel=None):
+  lemmatizer = WordNetLemmatizer()
+  stop_words = set(stopwords.words('english'))
 
-def get_features(sentence, word_window_size=5):
+  features = {} #Dictionary to store features of each word
+
+  curword = sentence['tokens'][i]
+
+  features['isFirstWord'] = int(i==0)
+  features['isLastWord'] = int(i==(len(sentence['tokens'])-1))
+  features['allLower'] = int(curword.islower())
+  features['allCaps'] = int(curword.isupper())
+  features['firstCap'] = int(curword[0].isupper())
+  features['isNum'] = int(curword.isdigit())
+  features['isNoun'] = int(pos_tag([curword.lower()])[0][1].lower() in ['n','nn', 'nnp', 'nnps'])
+  features['length'] = len(curword)
+  features['wordposition'] = i
+  features['twoDigitNum'] = int(curword.isdigit() and len(curword)==2)
+  features['fourDigitNum'] = int(curword.isdigit() and len(curword)==4)
+  features['containsDigit'] = int(any(char.isdigit() for char in curword))
+  features['containsDigitAndAlpha'] = int(features['containsDigit'] and any(char.isalpha() for char in curword))
+  features['containsDigitAndDash'] = int(features['containsDigit'] and ('-' in curword))
+  features['containsDigitAndSlash'] = int(features['containsDigit'] and ('/' in curword))
+  features['containsDigitAndComma'] = int(features['containsDigit'] and (',' in curword))
+  features['containsDigitAndPeriod'] = int(features['containsDigit'] and ('.' in curword))
+  features['isInitial'] = int(features['firstCap'] and len(curword)==2 and curword[1]=='.')
+  features['isOther'] = int(all(not char.isalnum() for char in curword))
+  if i > 0 and i < len(sentence['tokens'])-1:
+    features['isStopWordAndSurroundByNoun'] = int((lemmatizer.lemmatize(curword) in stop_words) and (pos_tag([sentence['tokens'][i-1].lower()])[0][1].lower() in ['n','nn', 'nnp', 'nnps']) and (pos_tag([sentence['tokens'][i+1].lower()])[0][1].lower() in ['n','nn', 'nnp', 'nnps']))
+  else:
+    features['isStopWordAndSurroundByNoun']=0
+  if prevLabel != None:
+    features['isPrevNE'] = prevLabel
+  elif i > 0:
+    features['isPrevNE'] = int(any(char.isdigit() for char in sentence['tokens'][i-1]) or sentence['ner_tags'][i-1] != 0)
+  else:
+    features['isPrevNE'] = 0
+  
+  return features
+
+def get_features(sentence, word_window_size=5, prevLabel=None):
   """
   Extract features from sentence.
-
   Parameters
   ----------
   sentence: (dict) Sentence in from of dict from Conll dataset
-
   Returns
   ----------
   1D list of feature dictionaries for each word
@@ -25,112 +62,8 @@ def get_features(sentence, word_window_size=5):
 
   sentence_features = [] 
   
-  lemmatizer = WordNetLemmatizer()
-  #gaz = get_gazetteer()
-
-
   for i in range(len(sentence['tokens'])):
-    features = {} #Dictionary to store features of each word
-
-    #Chunk tag of word
-    #features['Chunk'] = sentence['chunk_tags'][i]
-    
-    
-    #Is it in gazetteer
-    score = 0
-    score += int(sentence['tokens'][i].lower() in gaz)
-    if i-1 >= 0 :
-      score += int((' '.join(sentence['tokens'][i-1:i+1])).lower() in gaz)
-    if i+1 < len(sentence['tokens']):
-      score += int((' '.join(sentence['tokens'][i:i+2])).lower() in gaz)
-    
-    features['isInGazetteer'] = int(score>0)
-    
-
-    #Whether first character is capital or not
-    #features['firstCap'] = int(sentence['tokens'][i][0].isupper())
-    features['firstCapNotFirstWord'] = int(sentence['tokens'][i][0].isupper() and i!=0)
-
-    #Whether it is first word or not
-    #features['firstWord'] = int(i==0)
-    features['firstWordAndNoun'] = int(i==0 and pos_tag([sentence['tokens'][i].lower()])[0][1].lower() in ['n', 'nn','nnp','nnps'])
-    features['firstCapAndNoun'] = int(sentence['tokens'][i][0].isupper() and pos_tag([sentence['tokens'][i].lower()])[0][1].lower() in ['n', 'nn','nnp','nnps'])
-    #features['isNN'] = int(pos_tag([sentence['tokens'][i]])[0][1].lower() == 'nn')
-    #Whether all characters of word are capital or not
-    features['allCaps'] = int(sentence['tokens'][i].isupper())
-    
-    features['containsDigitandAlpha'] = int(bool(re.search(r'\d', sentence['tokens'][i])))
-    
-    features['isDigit'] = int(sentence['tokens'][i].isdigit())
-    '''
-    if i-1 > 0:
-      features['isNounAndFollowedByDT'] = int(pos_tag([sentence['tokens'][i]])[0][1].lower() in ['n', 'nn','nnp','nnps'] and pos_tag([sentence['tokens'][i-1]])[0][1].lower() == 'dt')
-    else:
-      features['isNounAndFollowedByDT'] = 0
-    '''
-    #features['isSingleCharWord'] = int(len(sentence['tokens'][i]) == 1)
-
-    #features['isInitial'] = int(sentence['tokens'][i][-1] == '.' and len(sentence['tokens'][i])==2 and sentence['tokens'][i][0].isalpha())
-
-    '''
-    itr = i - word_window_size // 2
-    
-    while itr <= i+word_window_size//2:
-      
-      #Word
-      if itr<0 or itr >= len(sentence['tokens']):
-        features['Word_'+str(itr-i)] = '<PAD>'
-      else:
-        features['Word_'+str(itr-i)] = sentence['tokens'][itr].lower()
-
-      #Word lemma
-      if itr<0 or itr >= len(sentence['tokens']):
-        features['WordLemma_'+str(itr-i)] = '<PAD>'
-      else:
-        features['WordLemma_'+str(itr-i)] = lemmatizer.lemmatize(features['Word_'+str(itr-i)])
-
-      #POS tag
-      if itr<0 or itr >= len(sentence['tokens']):
-        features['POS_'+str(itr-i)] = '<PAD>'
-      else:
-        #features['POS_'+str(itr-i)] = sentence['pos_tags'][itr]
-        features['POS_'+str(itr-i)] = pos_tag([sentence['tokens'][itr]])[0][1]
-
-      #Suffix of length 2
-      if itr<0 or itr >= len(sentence['tokens']):
-        features['Suffix2_'+str(itr-i)] = '<PAD>'
-      elif len(sentence['tokens'][itr]) >= 2:
-        features['Suffix2_'+str(itr-i)] = sentence['tokens'][itr][-2:].lower()
-      else:
-        features['Suffix2_'+str(itr-i)] = '<PAD>'
-      
-      #Suffix of length 3
-      if itr<0 or itr >= len(sentence['tokens']):
-        features['Suffix3_'+str(itr-i)] = '<PAD>'
-      elif len(sentence['tokens'][itr]) >= 3:
-        features['Suffix3_'+str(itr-i)] = sentence['tokens'][itr][-3:].lower()
-      else:
-        features['Suffix3_'+str(itr-i)] = '<PAD>'
-      
-      #Prefix of length 2
-      if itr<0 or itr >= len(sentence['tokens']):
-        features['Prefix2_'+str(itr-i)] = '<PAD>'
-      elif len(sentence['tokens'][itr]) >= 2:
-        features['Prefix2_'+str(itr-i)] = sentence['tokens'][itr][:2].lower()
-      else:
-        features['Prefix2_'+str(itr-i)] = '<PAD>'
-      
-      #Prefix of length 3
-      if itr<0 or itr >= len(sentence['tokens']):
-        features['Prefix3_'+str(itr-i)] = '<PAD>'
-      elif len(sentence['tokens'][itr]) >= 3:
-        features['Prefix3_'+str(itr-i)] = sentence['tokens'][itr][:3].lower()
-      else:
-        features['Prefix3_'+str(itr-i)] = '<PAD>'
-      
-      
-      itr+=1
-    '''
+    features = get_word_features(sentence, i)
     sentence_features.append(features)
 
   return sentence_features
@@ -138,11 +71,9 @@ def get_features(sentence, word_window_size=5):
 def get_targets(sentence):
   """
   Extract targets (0: No name / 1: Name) from sentence.
-
   Parameters
   ----------
   sentence: (dict) Sentence in from of dict from Conll dataset
-
   Returns
   ----------
   1D list of targets(0/1) for each word
@@ -150,7 +81,9 @@ def get_targets(sentence):
 
   targets = []
   for i in range(len(sentence['tokens'])):
-    if sentence['ner_tags'][i] != 0:
+    if any(char.isdigit() for char in sentence['tokens'][i]):
+      targets.append(1)
+    elif sentence['ner_tags'][i] != 0:
       targets.append(1)
     else:
       targets.append(0)
@@ -160,13 +93,11 @@ def get_targets(sentence):
 def preprocess(dataset, word_window_size=5, train_data=False, label=True,scaling=False):
   """
   Convert the textual features to numeric features.
-
   Parameters
   ----------
   dataset: (dataframe) Dataframe of dataset with column names as feature names
   word_window_size: (int) Neighbours for each word to consider from
   train_data: (bool) is given dataset is training data or not 
-
   Returns
   ----------
   1D list of feature dictionaries for each word
@@ -180,7 +111,7 @@ def preprocess(dataset, word_window_size=5, train_data=False, label=True,scaling
   prefix32idx = None
   all_pos = list(load('help/tagsets/upenn_tagset.pickle').keys())
   pos2idx = {p:i+1 for i,p in enumerate(all_pos)}
-  pos2idx['<PAD>'] = 0
+  pos2idx['0'] = 0
   
   '''
   if train_data:
@@ -190,7 +121,6 @@ def preprocess(dataset, word_window_size=5, train_data=False, label=True,scaling
     suffix3 = []
     prefix2 = []
     prefix3 = []
-
     for i in range(-(word_window_size//2), word_window_size//2 + 1):
       words += list(dataset['Word_'+str(i)])
       lemmas += list(dataset['WordLemma_'+str(i)])
@@ -198,14 +128,12 @@ def preprocess(dataset, word_window_size=5, train_data=False, label=True,scaling
       suffix3 += list(dataset['Suffix3_'+str(i)])
       prefix2 += list(dataset['Prefix2_'+str(i)])
       prefix3 += list(dataset['Prefix3_'+str(i)])
-
     words = list(set(words))
     lemmas = list(set(lemmas))
     suffix2 = list(set(suffix2))
     suffix3 = list(set(suffix3))
     prefix2 = list(set(prefix2))
     prefix3 = list(set(prefix3))
-
     word2idx = {w:i+1  for i,w in enumerate(words)}
     lemma2idx = {w:i+1  for i,w in enumerate(lemmas)}
     suffix22idx = {w:i+1  for i,w in enumerate(suffix2)}
@@ -231,6 +159,17 @@ def preprocess(dataset, word_window_size=5, train_data=False, label=True,scaling
     for col in dataset.columns.tolist():
       if col == 'y':
         continue
+
+      if col.startswith('POS_'):
+        x.append(pos2idx[dataset.loc[rec,col]])
+      elif isinstance(dataset.loc[rec,col],str):
+        try:
+          x += list(model_w2v[dataset.loc[rec,col]])[:10]
+        except:
+          x += [0]*10
+      else:
+        x.append(dataset.loc[rec,col])
+      '''
       if col.startswith('Word_'):
         if (dataset.loc[rec, col] not in word2idx):
           x.append(0)
@@ -265,14 +204,15 @@ def preprocess(dataset, word_window_size=5, train_data=False, label=True,scaling
         x.append(pos2idx[dataset.loc[rec,col]])
       else:
         x.append(dataset.loc[rec,col])
-    
+      '''
     X.append(x)
-  
+
   
   X,y = np.array(X), np.array(y)
   
   #print(X.sum(axis=0))
   #print(X[y[:]==1].sum(axis=0))
+  
   
   if train_data:
     #Handling Imbalance  
@@ -289,6 +229,10 @@ def preprocess(dataset, word_window_size=5, train_data=False, label=True,scaling
     new_y = np.array(list(new_y)+ list(y[mask][:count]))
     X = new_X
     y = new_y
+
+    p = np.random.permutation(X.shape[0])
+    #Shuffling
+    X,y = X[p], y[p]
     ####
   
   #print(X.sum(axis=0))
