@@ -1,13 +1,25 @@
 # Named-Entity-Identification-using-SVM
 
-Tools used:
-	Python version 3.9.0
+**Tools Used:**  
+- Python 3.9.0
 
-Python Libraries used:
-	Specified in requirements.txt
-	
-Running Instructions:
-	1. pip install -r requirements.txt
-	2. cd src
-	3. python test.py  => This to give sentence as input and do prediction
-	4. python evaluate.py  => This to do evaluation on test data
+**Python Libraries:**  
+All required libraries are specified in the [`requirements.txt`](requirements.txt) file.
+
+**Running Instructions:**  
+1. Install dependencies:  
+   ```
+   pip install -r requirements.txt
+   ```
+2. Navigate to the source directory:
+   ```
+   cd src
+   ```
+3. Run the prediction script (input a sentence to get prediction):
+   ```
+   python inference.py
+   ```
+4. Evaluate the model on test data:
+   ```
+   python evaluate.py
+   ```
